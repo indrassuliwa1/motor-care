@@ -1,0 +1,37 @@
+name: motor_care
+description: A new Flutter project.
+
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '^3.11.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+    
+  # Library wajib untuk memunculkan ikon ala iOS/iPhone
+  cupertino_icons: ^1.0.8
+  
+  # Database
+  sqflite: ^2.3.0
+  path_provider: ^2.1.2
+  
+  # Notifications & Time
+  flutter_local_notifications: ^17.1.1
+  timezone: ^0.9.2
+  
+  # Formatting tanggal & angka
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # Linter bawaan flutter agar kode rapi
+  flutter_lints: ^3.0.0
+
+# Bagian terpisah khusus konfigurasi UI/Aset bawaan Flutter
+flutter:
+  uses-material-design: true
