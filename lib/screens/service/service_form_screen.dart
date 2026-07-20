@@ -9,8 +9,6 @@ import 'package:motor_care/screens/service/notification_service.dart';
 
 class ServiceFormScreen extends StatefulWidget {
   final ServiceModel? service;
-  
-  // Tambahan: Variabel untuk menerima data otomatis dari Dashboard
   final int? prefilledMotorId;
   final String? prefilledJenisService;
 
@@ -41,11 +39,23 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   final _catatanController = TextEditingController();
 
   final List<String> _statusOptions = ['Upcoming', 'Done', 'Overdue'];
+  
+  // Warna tombol biru gelap dari referensi desain
+  final Color _darkBlue = const Color(0xFF305B85); 
 
   @override
   void initState() {
     super.initState();
+    _tanggalController.text = DateFormat('yyyy-MM-dd').format(DateTime.now());
     _loadMotors();
+  }
+
+  void _updateKilometerOtomatis(int? motorId) {
+    if (motorId == null) return;
+    final selectedMotor = _motors.firstWhere((m) => m.id == motorId);
+    if (widget.service == null) { 
+      _kilometerController.text = selectedMotor.kilometerSaatIni.toString();
+    }
   }
 
   Future<void> _loadMotors() async {
@@ -53,7 +63,6 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     setState(() {
       _motors = motors;
       
-      // Jika ini adalah mode EDIT (Data Service sudah ada)
       if (widget.service != null) {
         _selectedMotorId = widget.service!.motorId;
         _jenisController.text = widget.service!.jenisService;
@@ -62,9 +71,7 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
         _catatanController.text = widget.service!.catatan;
         _selectedStatus = widget.service!.status;
       } 
-      // Jika ini mode TAMBAH BARU (termasuk dari klik Dashboard)
       else {
-        // Cek apakah ada data otomatis (prefilled) dari Dashboard
         if (widget.prefilledMotorId != null) {
           _selectedMotorId = widget.prefilledMotorId;
         } else if (_motors.isNotEmpty) {
@@ -74,6 +81,8 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
         if (widget.prefilledJenisService != null) {
           _jenisController.text = widget.prefilledJenisService!;
         }
+        
+        _updateKilometerOtomatis(_selectedMotorId);
       }
     });
   }
@@ -95,12 +104,9 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   Future<void> _simpanData() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedMotorId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Silakan tambah data motor terlebih dahulu!')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Silakan tambah data motor dulu!')));
         return;
       }
-
       setState(() => _isLoading = true);
 
       try {
@@ -132,52 +138,27 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
             
             final h7 = serviceDate.subtract(const Duration(days: 7));
             if (h7.isAfter(now)) {
-              await notifService.scheduleNotification(
-                id: savedId * 10 + 7, 
-                title: 'Reminder H-7 Service', 
-                body: 'Motor butuh service ${_jenisController.text} minggu depan!', 
-                scheduledDate: h7
-              );
+              await notifService.scheduleNotification(id: savedId * 10 + 7, title: 'Reminder H-7 Service', body: 'Motor butuh service ${_jenisController.text} minggu depan!', scheduledDate: h7);
             }
             
             final h3 = serviceDate.subtract(const Duration(days: 3));
             if (h3.isAfter(now)) {
-              await notifService.scheduleNotification(
-                id: savedId * 10 + 3, 
-                title: 'Reminder H-3 Service', 
-                body: 'Jadwal service ${_jenisController.text} tinggal 3 hari lagi!', 
-                scheduledDate: h3
-              );
+              await notifService.scheduleNotification(id: savedId * 10 + 3, title: 'Reminder H-3 Service', body: 'Jadwal service ${_jenisController.text} tinggal 3 hari lagi!', scheduledDate: h3);
             }
 
             if (serviceDate.isAfter(now)) {
-              await notifService.scheduleNotification(
-                id: savedId * 10 + 0, 
-                title: 'Hari Ini Jadwal Service!', 
-                body: 'Jangan lupa service ${_jenisController.text} hari ini.', 
-                scheduledDate: serviceDate
-              );
+              await notifService.scheduleNotification(id: savedId * 10 + 0, title: 'Hari Ini Jadwal Service!', body: 'Jangan lupa service ${_jenisController.text} hari ini.', scheduledDate: serviceDate);
             }
           }
         }
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Jadwal Service berhasil disimpan!'),
-              backgroundColor: CupertinoColors.activeGreen,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data Service disimpan!'), backgroundColor: CupertinoColors.activeGreen));
           Navigator.pop(context, true);
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Gagal menyimpan: $e'),
-              backgroundColor: CupertinoColors.destructiveRed,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e'), backgroundColor: CupertinoColors.destructiveRed));
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -185,14 +166,25 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
     }
   }
 
-  // Widget Input gaya iOS
-  Widget _buildIOSField({required String label, required Widget child}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        child: child,
+  // WIDGET BANTUAN: Dekorasi Input sesuai dengan Referensi Desain
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: Colors.grey[700], size: 22),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.black26),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.black26),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: _darkBlue, width: 2),
       ),
     );
   }
@@ -201,93 +193,121 @@ class _ServiceFormScreenState extends State<ServiceFormScreen> {
   Widget build(BuildContext context) {
     if (_motors.isEmpty && widget.service == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Tambah Service')),
+        appBar: AppBar(title: const Text('Tambah Jadwal Service')),
         body: const Center(child: Text('Data Motor kosong. Tambah motor dulu.')),
       );
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: Text(widget.service == null ? 'Tambah Jadwal/Riwayat' : 'Edit Service'),
+        title: Text(
+          widget.service == null ? 'Tambah Jadwal Service' : 'Edit Service',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
+        backgroundColor: const Color(0xFFF8F9FA),
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.black87),
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(left: 8, bottom: 8),
-                  child: Text('DETAIL SERVICE', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+                // 1. Pilih Motor
+                DropdownButtonFormField<int>(
+                  value: _selectedMotorId,
+                  decoration: _inputDecoration('Pilih Motor', Icons.two_wheeler),
+                  icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                  items: _motors.map((m) => DropdownMenuItem(value: m.id, child: Text('${m.merk} ${m.namaMotor}'))).toList(),
+                  onChanged: (val) {
+                    setState(() => _selectedMotorId = val);
+                    _updateKilometerOtomatis(val);
+                  },
+                  validator: (val) => val == null ? 'Wajib dipilih' : null,
                 ),
-                _buildIOSField(
-                  label: 'Motor',
-                  child: DropdownButtonFormField<int>(
-                    value: _selectedMotorId,
-                    decoration: const InputDecoration(labelText: 'Pilih Motor', border: InputBorder.none),
-                    items: _motors.map((m) => DropdownMenuItem(value: m.id, child: Text('${m.merk} ${m.namaMotor} (${m.nomorPolisi})'))).toList(),
-                    onChanged: (val) => setState(() => _selectedMotorId = val),
-                    validator: (val) => val == null ? 'Wajib dipilih' : null,
+                const SizedBox(height: 16),
+
+                // 2. Jenis Service
+                TextFormField(
+                  controller: _jenisController,
+                  decoration: _inputDecoration('Jenis Service', CupertinoIcons.wrench),
+                  validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
+                ),
+                const SizedBox(height: 16),
+
+                // 3. Tanggal Service
+                TextFormField(
+                  controller: _tanggalController,
+                  readOnly: true,
+                  onTap: () => _pilihTanggal(context),
+                  decoration: _inputDecoration('Tanggal Service', Icons.calendar_today_outlined),
+                ),
+                const SizedBox(height: 16),
+
+                // 4. Kilometer Service
+                TextFormField(
+                  controller: _kilometerController,
+                  keyboardType: TextInputType.number,
+                  decoration: _inputDecoration('Kilometer Service', CupertinoIcons.speedometer),
+                  validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
+                ),
+                const SizedBox(height: 16),
+
+                // 5. Status Service
+                // Tetap dipertahankan agar pengguna bisa mengubah ke "Done" saat riwayat selesai
+                DropdownButtonFormField<String>(
+                  value: _selectedStatus,
+                  decoration: _inputDecoration('Status Service', Icons.info_outline),
+                  icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                  items: _statusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                  onChanged: (val) => setState(() => _selectedStatus = val!),
+                ),
+                const SizedBox(height: 16),
+
+                // 6. Catatan
+                TextFormField(
+                  controller: _catatanController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Catatan (Opsional)',
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.only(bottom: 48), // Mendorong ikon ke atas agar sejajar dengan baris pertama teks
+                      child: Icon(Icons.notes, color: Colors.grey[700], size: 22),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.black26)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.black26)),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: _darkBlue, width: 2)),
                   ),
                 ),
-                _buildIOSField(
-                  label: 'Jenis',
-                  child: TextFormField(
-                    controller: _jenisController,
-                    decoration: const InputDecoration(labelText: 'Jenis Service (Misal: Ganti Oli)', border: InputBorder.none),
-                    validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
+                const SizedBox(height: 32),
+
+                // 7. Tombol Simpan
+                SizedBox(
+                  height: 54,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _darkBlue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    onPressed: _isLoading ? null : _simpanData,
+                    icon: _isLoading ? const SizedBox.shrink() : const Icon(Icons.save_outlined, size: 20),
+                    label: _isLoading 
+                        ? const CupertinoActivityIndicator(color: Colors.white)
+                        : const Text('Simpan Jadwal', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
-                _buildIOSField(
-                  label: 'Tanggal',
-                  child: TextFormField(
-                    controller: _tanggalController,
-                    readOnly: true,
-                    onTap: () => _pilihTanggal(context),
-                    decoration: const InputDecoration(labelText: 'Tanggal Service', border: InputBorder.none, suffixIcon: Icon(CupertinoIcons.calendar)),
-                    validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
-                  ),
-                ),
-                _buildIOSField(
-                  label: 'Kilometer',
-                  child: TextFormField(
-                    controller: _kilometerController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Estimasi/Aktual Kilometer', border: InputBorder.none),
-                    validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
-                  ),
-                ),
-                _buildIOSField(
-                  label: 'Status',
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedStatus,
-                    decoration: const InputDecoration(labelText: 'Status', border: InputBorder.none),
-                    items: _statusOptions.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                    onChanged: (val) => setState(() => _selectedStatus = val!),
-                  ),
-                ),
-                _buildIOSField(
-                  label: 'Catatan',
-                  child: TextFormField(
-                    controller: _catatanController,
-                    maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Catatan (Opsional)', border: InputBorder.none),
-                  ),
-                ),
-                
                 const SizedBox(height: 24),
-                
-                CupertinoButton(
-                  color: CupertinoColors.activeBlue,
-                  borderRadius: BorderRadius.circular(12),
-                  onPressed: _isLoading ? null : _simpanData,
-                  child: _isLoading 
-                      ? const CupertinoActivityIndicator(color: Colors.white)
-                      : const Text('Simpan Service', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
               ],
             ),
           ),

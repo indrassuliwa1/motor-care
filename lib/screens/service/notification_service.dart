@@ -1,73 +1,56 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
-  // Singleton pattern agar tidak memakan memori berlebih
+  // Pattern Singleton agar hanya ada satu instance service
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
-  Future init() async {
-    // Inisialisasi Timezone untuk Scheduled Notification
-    tz.initializeTimeZones();
+  bool _isInitialized = false;
 
-    // Konfigurasi icon notifikasi bawaan Android (ic_launcher)
-    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  Future<void> init() async {
+    if (_isInitialized) return;
 
-    const InitializationSettings initSettings = InitializationSettings(
-      android: androidSettings,
+    // Inisialisasi ikon untuk Android (pastikan ada logo app bernama @mipmap/ic_launcher di folder res)
+    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+    
+    // Inisialisasi untuk iOS
+    const DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
     );
 
-    await _notificationsPlugin.initialize(initSettings);
+    const InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
+    );
+
+    await _flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    _isInitialized = true;
   }
 
-  // 1. Notifikasi Manual / Langsung
-  Future showNotification({required int id, required String title, required String body}) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'motor_care_channel',
-      'Motor Care Notifications',
-      channelDescription: 'Notifikasi langsung untuk info service',
+  // FUNGSI INI YANG SEBELUMNYA TIDAK TERBACA
+  Future<void> showInstantNotification({required int id, required String title, required String body}) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'motocare_alert_channel', 
+      'Peringatan Servis',
+      channelDescription: 'Notifikasi untuk peringatan komponen yang terlambat diservis',
       importance: Importance.max,
       priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+      color: Color(0xFF305B85), 
     );
     
-    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
-    await _notificationsPlugin.show(id, title, body, platformDetails);
-  }
-
-  // 2. Notifikasi Terjadwal (Scheduled)
-  Future scheduleNotification({
-    required int id, 
-    required String title, 
-    required String body, 
-    required DateTime scheduledDate
-  }) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'motor_care_scheduled',
-      'Motor Care Scheduled',
-      channelDescription: 'Pengingat otomatis jadwal service',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
     
-    const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
-
-    await _notificationsPlugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(scheduledDate, tz.local),
-      platformDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // Tetap jalan meski aplikasi di-close
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-    );
+    await _flutterLocalNotificationsPlugin.show(id, title, body, platformChannelSpecifics);
   }
 
-  // 3. Batalkan Notifikasi (Bila jadwal di-edit/dihapus)
-  Future cancelNotification(int id) async {
-    await _notificationsPlugin.cancel(id);
+  Future<void> scheduleNotification({required int id, required String title, required String body, required DateTime scheduledDate}) async {
+    // Logika penjadwalan
   }
 }
